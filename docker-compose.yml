@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+
+  db:
+    image: postgres:latest
+    container_name: postgres_db
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+
+  migrate:
+    build: .
+    container_name: migrate_service
+    entrypoint: ["./migrate.sh"]
+    env_file:
+      - .env
+    depends_on:
+      - db
+    networks:
+      - app_network
+
+  app:
+    build: .
+    container_name: go_app
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST_APP=${DB_HOST_APP}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - SSL_MODE=${SSL_MODE}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
