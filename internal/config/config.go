@@ -3,13 +3,22 @@ package config
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
 func ConnectDB() *sql.DB {
 	var err error
+
+	// Load the .env file
+	err = godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	connStr := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		os.Getenv("DB_HOST_APP"),
