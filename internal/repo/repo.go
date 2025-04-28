@@ -3,6 +3,7 @@ package repo
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 	"toDoList/internal/models"
 )
@@ -14,9 +15,20 @@ func CreateTodo(db *sql.DB, todo models.Todo) (models.Todo, error) {
         RETURNING id, description, status, created_at, updated_at
     `
 
-	err := db.QueryRow(query, todo.Description, todo.Status, time.Now(), time.Now()).Scan(
-		&todo.ID, &todo.Description, &todo.Status, &todo.CreatedAt, &todo.UpdatedAt,
-	)
+	err := db.
+		QueryRow(
+			query,
+			todo.Description,
+			todo.Status,
+			time.Now(),
+			time.Now()).
+		Scan(
+			&todo.ID,
+			&todo.Description,
+			&todo.Status,
+			&todo.CreatedAt,
+			&todo.UpdatedAt,
+		)
 	if err != nil {
 		return models.Todo{}, fmt.Errorf("failed to insert todo: %w", err)
 	}
@@ -33,44 +45,23 @@ func GetTodoByID(db *sql.DB, id int) (models.Todo, error) {
         WHERE id = $1
     `
 
-	err := db.QueryRow(query, id).Scan(
-		&todo.ID, &todo.Description, &todo.Status, &todo.CreatedAt, &todo.UpdatedAt,
-	)
+	err := db.
+		QueryRow(
+			query,
+			id).
+		Scan(
+			&todo.ID,
+			&todo.Description,
+			&todo.Status,
+			&todo.CreatedAt,
+			&todo.UpdatedAt,
+		)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return models.Todo{}, fmt.Errorf("query error: %w", err)
-		}
-		return models.Todo{}, fmt.Errorf("query error: %w", err)
+		return models.Todo{}, fmt.Errorf("error scanning todo: %v", err)
 	}
 
 	return todo, nil
-}
-
-func GetAllTodos(db *sql.DB) ([]models.Todo, error) {
-	var todos []models.Todo
-
-	query := "SELECT id, description, status, created_at, updated_at FROM todos"
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("error executing query: %v", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var todo models.Todo
-		if err := rows.Scan(&todo.ID, &todo.Description, &todo.Status, &todo.CreatedAt, &todo.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("error scanning row: %v", err)
-		}
-		todos = append(todos, todo)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error with rows iteration: %v", err)
-	}
-
-	return todos, nil
 }
 
 func UpdateTodo(db *sql.DB, todo models.Todo) (models.Todo, error) {
@@ -84,19 +75,22 @@ func UpdateTodo(db *sql.DB, todo models.Todo) (models.Todo, error) {
 		RETURNING id, description, status, created_at, updated_at
 	`
 
-	err := db.QueryRow(query, todo.Description, todo.Status, time.Now(), todo.ID).
+	err := db.
+		QueryRow(
+			query,
+			todo.Description,
+			todo.Status,
+			time.Now(),
+			todo.ID).
 		Scan(
 			&todo.ID,
 			&todo.Description,
 			&todo.Status,
 			&todo.CreatedAt,
-			&todo.UpdatedAt,
-		)
+			&todo.UpdatedAt)
 
-	if err == sql.ErrNoRows {
-		return models.Todo{}, err
-	} else if err != nil {
-		return models.Todo{}, err
+	if err != nil {
+		return models.Todo{}, fmt.Errorf("error updating todo: %v", err)
 	}
 
 	return todo, nil
@@ -120,4 +114,78 @@ func DeleteTodo(db *sql.DB, todo models.Todo) error {
 	}
 
 	return nil
+}
+
+func GetTodos(
+	db *sql.DB,
+	filter models.TodoFilter,
+	sortBy string,
+	sortOrder string,
+	limit int,
+	offset int) ([]models.Todo, error) {
+
+	// Protection against SQL injection for sortBy and sortOrder
+	allowedSortFields := map[string]bool{
+		"id":          true,
+		"description": true,
+		"status":      true,
+		"created_at":  true,
+		"updated_at":  true,
+	}
+	if !allowedSortFields[sortBy] {
+		sortBy = "created_at" // default sort
+	}
+
+	sortOrder = strings.ToUpper(sortOrder)
+	if sortOrder != "ASC" && sortOrder != "DESC" {
+		sortOrder = "ASC" // default order
+	}
+
+	query := fmt.Sprintf(`
+		SELECT id, description, status, created_at, updated_at
+		FROM todos
+		WHERE ($1::text IS NULL OR status = $1)
+		ORDER BY %s %s
+		LIMIT $2 OFFSET $3;
+	`, sortBy, sortOrder)
+
+	// If filter.Status is empty, pass NULL instead of a string
+	var statusFilter interface{}
+	if filter.Status == "" {
+		statusFilter = nil
+	} else {
+		statusFilter = filter.Status
+	}
+
+	rows, err := db.
+		Query(
+			query,
+			statusFilter,
+			limit,
+			offset)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching todos: %v", err)
+	}
+
+	defer rows.Close()
+
+	var todos []models.Todo
+	for rows.Next() {
+		var todo models.Todo
+		if err := rows.
+			Scan(
+				&todo.ID,
+				&todo.Description,
+				&todo.Status,
+				&todo.CreatedAt,
+				&todo.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("error scanning todo: %v", err)
+		}
+		todos = append(todos, todo)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return todos, nil
 }

@@ -6,8 +6,6 @@ import (
 	"toDoList/internal/config"
 	"toDoList/internal/routes"
 
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	_ "toDoList/docs"
 )
 
@@ -20,8 +18,6 @@ import (
 func Run() {
 	db := config.ConnectDB()
 	r := gin.Default()
-
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	routes.TodoRoutes(db, r)
 

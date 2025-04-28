@@ -37,21 +37,39 @@ func CreateTodoHandler(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// GetAllTodosHandler godoc
-// @Summary Get all tasks
+// GetTodosHandler godoc
+// @Summary Get all tasks with filtering, sorting and pagination
 // @Tags todos
 // @Produce json
-// @Success 200 {object} []models.Todo
-// @Failure 400 {object} map[string]string
+// @Param status query string false "Filter by status (optional)"
+// @Param sortBy query string false "Sort by field: id, description, status, created_at, updated_at (default: created_at)"
+// @Param sortOrder query string false "Sort order: ASC or DESC (default: ASC)"
+// @Param limit query int false "Limit number of results (default: 10)"
+// @Param offset query int false "Offset for pagination (default: 0)"
+// @Success 200 {array} models.Todo
 // @Failure 500 {object} map[string]string
-// @Router /todos/all [get]
-func GetAllTodosHandler(db *sql.DB) gin.HandlerFunc {
+// @Router /todos [get]
+func GetTodosHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		todos, err := repo.GetAllTodos(db)
+		// Извлекаем параметры из запроса
+		filter := models.TodoFilter{
+			Status: c.DefaultQuery("status", ""),
+		}
+
+		// Sorting parameters
+		sortBy := c.DefaultQuery("sortBy", "created_at")
+		sortOrder := c.DefaultQuery("sortOrder", "ASC")
+
+		// Pagination parameters
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+		offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+		todos, err := repo.GetTodos(db, filter, sortBy, sortOrder, limit, offset)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Error reading todos from database. Error: %v", err)})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Error fetching todos: %v", err)})
 			return
 		}
+
 		c.JSON(http.StatusOK, todos)
 	}
 }
@@ -73,7 +91,7 @@ func GetTodoByIDHandler(db *sql.DB) gin.HandlerFunc {
 
 		todo, err := repo.GetTodoByID(db, id)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Error getting todo by ID. Error: %v", err)})
+			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Error fetching todo by ID. Error: %v", err)})
 			return
 		}
 		c.JSON(http.StatusOK, todo)
