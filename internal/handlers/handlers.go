@@ -15,7 +15,7 @@ import (
 // @Tags todos
 // @Accept json
 // @Produce json
-// @Param todo body models.Todo true "Todo for creating"
+// @Param todo body models.CreateTodoInput true "Todo for creating"
 // @Success 201 {object} models.Todo
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -27,7 +27,6 @@ func CreateTodoHandler(db *sql.DB) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 			return
 		}
-
 		todo, err := repo.CreateTodo(db, todo)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Error inserting todo to database. Error: %v", err)})
@@ -103,7 +102,7 @@ func GetTodoByIDHandler(db *sql.DB) gin.HandlerFunc {
 // @Tags todos
 // @Accept json
 // @Produce json
-// @Param todo body models.Todo true "Todo for updating"
+// @Param todo body models.UpdateTodoInput true "Todo for updating"
 // @Success 200 {object} models.Todo
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -130,7 +129,7 @@ func UpdateTodoHandler(db *sql.DB) gin.HandlerFunc {
 // @Tags todos
 // @Accept json
 // @Produce json
-// @Param todo body models.Todo true "Todo for deleting"
+// @Param todo body models.DeleteTodoInput true "Todo for deleting"
 // @Success 204 {object} models.Todo
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
