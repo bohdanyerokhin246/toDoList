@@ -11,24 +11,23 @@ RUN apk add --no-cache curl bash git
 RUN go install github.com/swaggo/swag/cmd/swag@latest
 
 # Загружаем и устанавливаем migrate для миграций
-RUN apk add --no-cache curl && \
-    curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.0/migrate.linux-amd64.tar.gz | tar xz -C /usr/local/bin
+RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.0/migrate.linux-amd64.tar.gz | tar xz -C /usr/local/bin
 
-# Копируем go.mod и go.sum в контейнер и выполняем go mod tidy
+# Копируем go.mod и go.sum в контейнер и устанавливаем зависимости
 COPY go.mod go.sum ./
 RUN go mod tidy
 
-# Копируем остальные файлы приложения
+# Копируем остальные файлы проекта
 COPY . .
 
 # Генерируем Swagger-документацию
 RUN swag init
 
-# Делаем миграции базы данных, если необходимо (при наличии скрипта migrate.sh)
-RUN chmod +x ./migrate.sh
+# Делаем скрипт миграций исполняемым
+RUN chmod +x migrate.sh
 
 # Собираем Go-приложение
 RUN go build -o myapp .
 
-# Запускаем приложение
+# Устанавливаем команду запуска (для приложения)
 CMD ["./myapp"]
