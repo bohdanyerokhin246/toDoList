@@ -24,7 +24,7 @@ COPY . .
 RUN swag init
 
 # Делаем скрипт миграций исполняемым
-RUN chmod +x migrate.sh
+RUN chmod +x ./migrate.sh
 
 # Собираем Go-приложение
 RUN go build -o myapp .
