@@ -3,7 +3,6 @@ package cmd
 import (
 	"github.com/gin-gonic/gin"
 	"log"
-	"toDoList/internal/config"
 	"toDoList/internal/routes"
 
 	_ "toDoList/docs"
@@ -16,10 +15,9 @@ import (
 // @host localhost:8080
 // @BasePath /
 func Run() {
-	db := config.ConnectDB()
 	r := gin.Default()
 
-	routes.TodoRoutes(db, r)
+	routes.TodoRoutes(r)
 
 	log.Println("Starting Todo List Service on :8080")
 	if err := r.Run(":8080"); err != nil {
